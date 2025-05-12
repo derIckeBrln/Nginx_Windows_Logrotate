@@ -46,7 +46,7 @@ Rotate two logs, zip older than 2, and keep 10 zipped logs:
 Rotate `access.log` and `error.log`, zip older rotated logs, and trigger NGINX to reopen logs:
 
 ```powershell
-.\rotate-logs.ps1 `
+.\logrotate.ps1 `
   -LogPath "C:\nginx\logs" `
   -LogFile "C:\nginx\logs\rotation.log" `
   -LogFiles @("access.log", "error.log") `
@@ -77,7 +77,7 @@ You can schedule this script using Windows Task Scheduler:
    - **Program**: `powershell.exe`
    - **Arguments**:
      ```text
-     -ExecutionPolicy Bypass -File "C:\scripts\rotate-logs.ps1" -LogPath "C:\nginx\logs" -LogFile "C:\nginx\logs\rotation.log" -LogFiles @("access.log","error.log") -PostRotationTrigger "C:\nginx\nginx.exe -s reopen" -ZipDelay 2 -KeepZips 14
+     -ExecutionPolicy Bypass -File "C:\scripts\logrotate.ps1" -LogPath "C:\nginx\logs" -LogFile "C:\nginx\logs\rotation.log" -LogFiles @("access.log","error.log") -PostRotationTrigger "C:\nginx\nginx.exe -s reopen" -ZipDelay 2 -KeepZips 14
      ```
 5. Enable **"Run with highest privileges"**
 
@@ -86,7 +86,7 @@ You can schedule this script using Windows Task Scheduler:
 ```batch
 schtasks /Create ^
  /TN "Log Rotation - NGINX" ^
- /TR "powershell.exe -ExecutionPolicy Bypass -File \"C:\scripts\rotate-logs.ps1\" -LogPath \"C:\nginx\logs\" -LogFile \"C:\nginx\logs\rotation.log\" -LogFiles access.log error.log -PostRotationTrigger \"C:\nginx\nginx.exe -s reopen\" -ZipDelay 2 -KeepZips 14" ^
+ /TR "powershell.exe -ExecutionPolicy Bypass -File \"C:\scripts\logrotate.ps1\" -LogPath \"C:\nginx\logs\" -LogFile \"C:\nginx\logs\rotation.log\" -LogFiles access.log error.log -PostRotationTrigger \"C:\nginx\nginx.exe -s reopen\" -ZipDelay 2 -KeepZips 14" ^
  /SC DAILY /ST 00:00 ^
  /RL HIGHEST /F
 ```
