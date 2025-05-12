@@ -13,7 +13,7 @@ function Write-Log {
     "$timestamp $Message" | Out-File -FilePath $LogFile -Append -Encoding utf8
 }
 
-Write-Log "=== Rotation gestartet ==="
+Write-Log "=== Rotation started ==="
 
 $Now = Get-Date
 $Timestamp = $Now.ToString("yyyy-MM-dd-HHmmss")
@@ -75,4 +75,4 @@ try {
     }
 }
 
-Write-Log "=== Rotation abgeschlossen ==="
+Write-Log "=== Rotation finished ==="
