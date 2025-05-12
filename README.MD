@@ -39,6 +39,7 @@ Rotate two logs, zip older than 2, and keep 10 zipped logs:
   -LogFiles @("app.log", "debug.log") `
   -ZipDelay 2 `
   -KeepZips 10
+```
 
 ## Example Usage for NGINX on Windows
 
@@ -52,6 +53,7 @@ Rotate `access.log` and `error.log`, zip older rotated logs, and trigger NGINX t
   -PostRotationTrigger "C:\nginx\nginx.exe -s reopen" `
   -ZipDelay 2 `
   -KeepZips 14
+```
 
 ### This setup will:
 
@@ -87,6 +89,7 @@ schtasks /Create ^
  /TR "powershell.exe -ExecutionPolicy Bypass -File \"C:\scripts\rotate-logs.ps1\" -LogPath \"C:\nginx\logs\" -LogFile \"C:\nginx\logs\rotation.log\" -LogFiles access.log error.log -PostRotationTrigger \"C:\nginx\nginx.exe -s reopen\" -ZipDelay 2 -KeepZips 14" ^
  /SC DAILY /ST 00:00 ^
  /RL HIGHEST /F
+```
 
 ### Notes
 
