@@ -1,72 +1,98 @@
-# NGINX Log Rotation Script (Windows, PowerShell)
+# Generic Log Rotation Script for Windows (PowerShell)
 
-This PowerShell script rotates NGINX log files on Windows systems. It renames `access.log` and `error.log` with a timestamp, compresses older log files, and deletes old ZIP archives according to configurable retention policies.
+This PowerShell script provides flexible and automated log rotation for any log files on Windows systems. It is especially suitable for rotating logs of services like NGINX, but can be used with any application that writes to log files and can reopen logs on demand.
 
 ## Features
 
-- Renames `access.log` and `error.log` to `access-YYYY-MM-DD-HHmmss.log`
-- Sends a `-s reopen` signal to NGINX to start fresh log files
-- Compresses older rotated log files with `.zip`
-- Retains only the newest N uncompressed logs (per type)
-- Keeps only the latest M compressed archives (per type)
-- Writes all operations to a persistent `nginx-rotation.log`
+- Rotates one or more `.log` files by renaming them with a timestamp (`YYYY-MM-DD-HHmmss`)
+- Supports multiple log sources (e.g. access logs, error logs, proxy logs)
+- Compresses older rotated logs into `.zip` files
+- Keeps only a defined number of uncompressed and compressed logs per file
+- Optionally runs a post-rotation command (e.g. signal the app to reopen log files)
+- All actions are logged to a user-defined rotation log file
 
 ## Requirements
 
-- PowerShell 5.1 or newer (Windows 10+)
-- `nginx.exe` accessible locally
-- NGINX installed and configured with standard logging
+- Windows 10 / Server 2016 or newer
+- PowerShell 5.1+ or PowerShell Core 7+
+- Optional: `Compress-Archive` (built-in in modern PowerShell versions)
 
 ## Parameters
 
-| Parameter     | Type   | Description                                                                 |
-|---------------|--------|-----------------------------------------------------------------------------|
-| `LogPath`     | string | Path to the directory containing `access.log` and `error.log`               |
-| `NginxExe`    | string | Full path to the `nginx.exe` executable                                     |
-| `ZipDelay`    | int    | Number of the most recent rotated logs to keep uncompressed (per log type) |
-| `KeepCopies`  | int    | Number of compressed `.zip` archives to retain (per log type)              |
+| Parameter             | Type      | Description                                                                 |
+|------------------------|-----------|-----------------------------------------------------------------------------|
+| `LogPath`             | string    | Path where log files are stored (default: `C:\logs`)                        |
+| `LogFile`             | string    | Path to the script’s own rotation log (e.g. `rotation.log`)                |
+| `LogFiles`            | string[]  | One or more filenames to rotate (e.g. `access.log`, `error.log`)           |
+| `PostRotationTrigger` | string    | Optional command to run after rotation (e.g. `nginx.exe -s reopen`)        |
+| `ZipDelay`            | int       | Number of most recent rotated logs (per file) to keep uncompressed         |
+| `KeepZips`            | int       | Number of compressed logs (`*.zip`) to retain per log file                 |
 
-## Example
+## Example Usage (Generic)
+
+Rotate two logs, zip older than 2, and keep 10 zipped logs:
 
 ```powershell
-.\rotate-nginx.ps1 `
-  -LogPath "D:\nginx\logs" `
-  -NginxExe "D:\nginx\nginx.exe" `
+.\logrotate.ps1 `
+  -LogPath "D:\service\logs" `
+  -LogFile "D:\service\logs\rotate.log" `
+  -LogFiles @("app.log", "debug.log") `
   -ZipDelay 2 `
-  -KeepCopies 14
+  -KeepZips 10
 
-# Automating NGINX Log Rotation with Task Scheduler (Windows)
+## Example Usage for NGINX on Windows
 
-To run the `rotate-nginx.ps1` script automatically on a schedule, you can use the Windows built-in **Task Scheduler**.
+Rotate `access.log` and `error.log`, zip older rotated logs, and trigger NGINX to reopen logs:
 
-## Option 1: Manual Setup via Task Scheduler GUI
+```powershell
+.\rotate-logs.ps1 `
+  -LogPath "C:\nginx\logs" `
+  -LogFile "C:\nginx\logs\rotation.log" `
+  -LogFiles @("access.log", "error.log") `
+  -PostRotationTrigger "C:\nginx\nginx.exe -s reopen" `
+  -ZipDelay 2 `
+  -KeepZips 14
 
-1. Open **Task Scheduler** (`taskschd.msc`)
-2. Click **"Create Task"**
-3. Under the **General** tab:
-   - Name: `NGINX Log Rotation`
-   - Check: "Run with highest privileges"
-   - Configure for: Windows 10 or higher
-4. Under the **Triggers** tab:
-   - Click "New…"
-   - Choose schedule (e.g. **Daily at 00:00** or **Hourly**)
-5. Under the **Actions** tab:
-   - Click "New…"
-   - Action: Start a program
-   - Program/script: `powershell.exe`
-   - Add arguments:
+### This setup will:
+
+- Rename `access.log` to `access-YYYY-MM-DD-HHmmss.log`
+- Rename `error.log` accordingly
+- Keep the 2 newest `.log` files uncompressed for each type
+- Zip all older rotated `.log` files into `.zip`
+- Retain only 14 zipped files per type (oldest zipped logs are deleted)
+- Log everything to `rotation.log`
+
+### Scheduled Automation (Recommended)
+
+You can schedule this script using Windows Task Scheduler:
+
+#### Via Task Scheduler GUI
+
+1. Open **Task Scheduler**
+2. Create a new task
+3. Set the **trigger** (e.g. daily at 00:00)
+4. Set the **action**:
+   - **Program**: `powershell.exe`
+   - **Arguments**:
      ```text
-     -ExecutionPolicy Bypass -File "C:\scripts\rotate-nginx.ps1" -LogPath "C:\nginx\logs" -NginxExe "C:\nginx\nginx.exe" -ZipDelay 2 -KeepCopies 14
+     -ExecutionPolicy Bypass -File "C:\scripts\rotate-logs.ps1" -LogPath "C:\nginx\logs" -LogFile "C:\nginx\logs\rotation.log" -LogFiles @("access.log","error.log") -PostRotationTrigger "C:\nginx\nginx.exe -s reopen" -ZipDelay 2 -KeepZips 14
      ```
-6. Save the task
+5. Enable **"Run with highest privileges"**
 
-## Option 2: Register via Batch Script
-
-Use this example `.bat` file to create the task from the command line:
+#### Via Command Line (Batch)
 
 ```batch
 schtasks /Create ^
- /TN "NGINX Log Rotation" ^
- /TR "powershell.exe -ExecutionPolicy Bypass -File \"C:\scripts\rotate-nginx.ps1\" -LogPath \"C:\nginx\logs\" -NginxExe \"C:\nginx\nginx.exe\" -ZipDelay 2 -KeepCopies 14" ^
+ /TN "Log Rotation - NGINX" ^
+ /TR "powershell.exe -ExecutionPolicy Bypass -File \"C:\scripts\rotate-logs.ps1\" -LogPath \"C:\nginx\logs\" -LogFile \"C:\nginx\logs\rotation.log\" -LogFiles access.log error.log -PostRotationTrigger \"C:\nginx\nginx.exe -s reopen\" -ZipDelay 2 -KeepZips 14" ^
  /SC DAILY /ST 00:00 ^
  /RL HIGHEST /F
+
+### Notes
+
+- Ensure that log rotation does not interfere with your application’s logging  
+  (e.g. use `-s reopen` for NGINX to reopen log files after rotation)
+- The script does not rotate logs still being written to —  
+  it relies on the application to reopen new log files after rotation
+- Timestamps in filenames use 24h time format (`HHmmss`)  
+  and are safe for chronological sorting and filesystem compatibility
